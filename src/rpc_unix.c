@@ -1,0 +1,150 @@
+/*
+ * Discord RPC Library
+ * Goldenkrew3000 / Hojuix 2026
+ * License: GNU General Public License 3.0
+ */
+
+#include <stdio.h> // printf
+#include <stdlib.h> // getenv()
+#include <string.h> // memset()
+#include <errno.h>
+#include "cJSON.h"
+#include "rpc_general.h"
+#include "rpc_unix.h"
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+int server_fd = -1;
+
+/*
+ * --
+ * Returns -1 on failure. Returns 0 on success.
+ */
+int Rpc_Unix_Initialize(char* client_id) {
+    static int rc = 0;
+    static int client_fd = -1;
+    struct sockaddr_un client_addr;
+
+    // Locate the IPC Socket
+    /*
+     * Discord's Flatpak puts it at $XDG_RUNTIME_DIR/.flatpak/com.discordapp.Discord/xdg-run/discord-ipc-0
+     * Vesktop's Flatpak puts it at $XDG_RUNTIME_DIR/.flatpak/dev.vencord.Vesktop/xdg-run/discord-ipc-0
+     * Discord and Vesktop (native) put it at $XDG_RUNTIME_DIR/discord-ipc-0
+     * Though I have also seen it at /tmp/discord-ipc-0
+     */
+    const char* tmp_path = Rpc_Unix_GetTempPath();
+    printf("Temp path: %s\n", tmp_path);
+
+    // scanning blah blah
+    char* discord_ipc_path = NULL;
+    asprintf(&discord_ipc_path, "/run/user/1000/discord-ipc-0"); // TODO
+
+    // Connect to the socket
+    client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (client_fd == -1) {
+        printf("Could not create socket: %s\n", strerror(errno));
+        return -1;
+    }
+
+    memset(&client_addr, 0, sizeof(struct sockaddr_un));
+    client_addr.sun_family = AF_UNIX;
+    strncpy(client_addr.sun_path, discord_ipc_path, sizeof(client_addr.sun_path) - 1);
+    free(discord_ipc_path); discord_ipc_path = NULL;
+
+    if (connect(client_fd, (struct sockaddr*)&client_addr, sizeof(client_addr)) < 0) {
+        printf("Could not connect to socket: %s\n", strerror(errno));
+        close(client_fd);
+        return -1;
+    }
+
+    // Assemble and send handshake
+    cJSON* handshake_root = cJSON_CreateObject();
+    if (handshake_root == NULL) {
+        close(client_fd);
+        return -1;
+    }
+    cJSON_AddNumberToObject(handshake_root, "v", 1);
+    cJSON_AddStringToObject(handshake_root, "client_id", client_id);
+    char* payload_str = cJSON_PrintUnformatted(handshake_root);
+    cJSON_Delete(handshake_root);
+    if (payload_str == NULL) {
+        close(client_fd);
+        return -1;
+    }
+
+    Discord_RPCHeader_t handshake_hdr;
+    handshake_hdr.type = DISCORDRPC_TYPE_HANDSHAKE;
+    handshake_hdr.size = strlen(payload_str);
+
+    rc = send(client_fd, &handshake_hdr, sizeof(Discord_RPCHeader_t), 0);
+    if (rc == -1) {
+        free(payload_str); payload_str = NULL;
+        close(client_fd);
+        return -1;
+    }
+
+    rc = send(client_fd, payload_str, strlen(payload_str), 0);
+    free(payload_str); payload_str = NULL;
+    if (rc == -1) {
+        close(client_fd);
+        return -1;
+    }
+
+    // Receive response from Discord
+    uint8_t handshake_resp_hdr_data[8];
+    rc = recv(client_fd, &handshake_resp_hdr_data, sizeof(handshake_resp_hdr_data), 0);
+    if (rc == -1 || rc != sizeof(handshake_resp_hdr_data)) {
+        printf("fuck\n");
+        close(client_fd);
+        return -1;
+    }
+    Discord_RPCHeader_t* handshake_resp_hdr = (Discord_RPCHeader_t*)&handshake_resp_hdr_data;
+
+    char* handshake_resp_data = malloc(handshake_resp_hdr->size * sizeof(char));
+    if (handshake_resp_data == NULL) {
+        close(client_fd);
+        return -1;
+    }
+
+    rc = recv(client_fd, handshake_resp_data, handshake_resp_hdr->size, 0);
+    if (rc == -1 || rc != handshake_resp_hdr->size) {
+        printf("fuck b\n");
+        free(handshake_resp_data); handshake_resp_data = NULL;
+        close(client_fd);
+        return -1;
+    }
+
+
+    printf("ret: %s\n", handshake_resp_data);
+    // TODO: Seems to return 4000 when no client id is provided
+
+
+
+    return 0;
+}
+
+const char* Rpc_Unix_GetTempPath() {
+    // copied blah blah
+    const char* temp = getenv("XDG_RUNTIME_DIR");
+    temp = temp ? temp : getenv("TMPDIR");
+    temp = temp ? temp : getenv("TMP");
+    temp = temp ? temp : getenv("TEMP");
+    temp = temp ? temp : "/tmp";
+    return temp;
+}
+
+/*
+ * Open the Discord IPC UNIX Socket
+ * Returns ---
+ */
+int Rpc_Unix_Open() {
+    //
+}
+
+
+
