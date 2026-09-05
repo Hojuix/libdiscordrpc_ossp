@@ -41,7 +41,7 @@ typedef struct {
 } Discord_RPC_SendActivity_t;
 
 Discord_RPC_SendActivity_t* Rpc_General_SetActivity_Constructor();
-void Rpc_General_SetActivity_Deconstructor(Discord_RPC_SendActivity_t* obj);
+void Rpc_General_SetActivity_Deconstructor(Discord_RPC_SendActivity_t** obj_ptr);
 
 int Rpc_General_Initialize(char* client_id);
 int Rpc_General_SetActivity(Discord_RPC_SendActivity_t* activity);

@@ -53,9 +53,5 @@ void Rpc_Util_SafeFree(void** ptr) {
     if (*ptr != NULL) {
         free(*ptr);
         *ptr = NULL;
-    } else {
-#ifdef DISCORDRPC_DEBUG
-        printf("[Rpc_Util_SafeFree] Attempted double-free on variable.\n");
-#endif
     }
 }

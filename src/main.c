@@ -23,11 +23,6 @@ int main() {
     }
     printf("Connected to Discord RPC.\n");
 
-    char* a = Rpc_Util_GenerateUUID();
-    printf("%s\n", a);
-
-    Rpc_Util_GenerateRandomPID();
-
     Discord_RPC_SendActivity_t* new_activity = Rpc_General_SetActivity_Constructor();
     new_activity->state = strdup("Top line");
     new_activity->details = strdup("Bottom line");
@@ -35,6 +30,7 @@ int main() {
 
 
     Rpc_General_SetActivity(new_activity);
+    Rpc_General_SetActivity_Deconstructor(&new_activity);
 
 
     usleep(1000 * 20000);

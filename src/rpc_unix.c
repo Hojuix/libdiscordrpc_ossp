@@ -11,6 +11,7 @@
 #include "cJSON.h"
 #include "rpc_general.h"
 #include "rpc_unix.h"
+#include "utils.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -118,8 +119,10 @@ int Rpc_Unix_Initialize(char* client_id) {
     }
 
 
-    printf("ret: %s\n", handshake_resp_data);
+    //printf("ret: %s\n", handshake_resp_data); // invalid read size from valgrind
     // TODO: Seems to return 4000 when no client id is provided
+
+    Rpc_Util_SafeFree((void*)&handshake_resp_data);
 
     server_fd = client_fd;
 
@@ -170,7 +173,11 @@ int Rpc_Unix_SendFrame(char* payload) {
         free(handshake_resp_data); handshake_resp_data = NULL;
         return -1;
     }
-    printf("%s\n", handshake_resp_data);
+    //printf("%s\n", handshake_resp_data);
+
+    Rpc_Util_SafeFree((void*)&handshake_resp_data);
+
+    return 0;
 }
 
 const char* Rpc_Unix_GetTempPath() {

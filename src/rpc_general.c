@@ -42,7 +42,8 @@ Discord_RPC_SendActivity_t* Rpc_General_SetActivity_Constructor() {
     return obj;
 }
 
-void Rpc_General_SetActivity_Deconstructor(Discord_RPC_SendActivity_t* obj) {
+void Rpc_General_SetActivity_Deconstructor(Discord_RPC_SendActivity_t** obj_ptr) {
+    Discord_RPC_SendActivity_t* obj = *obj_ptr;
     Rpc_Util_SafeFree((void*)&obj->state);
     Rpc_Util_SafeFree((void*)&obj->state_url);
     Rpc_Util_SafeFree((void*)&obj->details);
@@ -147,6 +148,7 @@ int Rpc_General_SetActivity(Discord_RPC_SendActivity_t* activity) {
 #endif
 
     char* payload = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
     if (payload != NULL) {
         Rpc_Unix_SendFrame(payload);
         Rpc_Util_SafeFree((void*)&payload);
