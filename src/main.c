@@ -5,7 +5,11 @@
  */
 
 #include <stdio.h>
+#include <unistd.h> // for usleep(), to hold thread open for testing
 #include "rpc_general.h"
+#include "utils.h"
+
+#include <string.h> //strdup
 
 int main() {
     static int rc = 0;
@@ -18,6 +22,22 @@ int main() {
         return 1;
     }
     printf("Connected to Discord RPC.\n");
+
+    char* a = Rpc_Util_GenerateUUID();
+    printf("%s\n", a);
+
+    Rpc_Util_GenerateRandomPID();
+
+    Discord_RPC_SendActivity_t* new_activity = Rpc_General_SetActivity_Constructor();
+    new_activity->state = strdup("Top line");
+    new_activity->details = strdup("Bottom line");
+    new_activity->activity_type = DISCORDRPC_ACTIVITY_TYPE_LISTENING;
+
+
+    Rpc_General_SetActivity(new_activity);
+
+
+    usleep(1000 * 20000);
 
     return 0;
 }

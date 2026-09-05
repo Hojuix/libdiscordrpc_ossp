@@ -42,7 +42,7 @@ int Rpc_Unix_Initialize(char* client_id) {
 
     // scanning blah blah
     char* discord_ipc_path = NULL;
-    asprintf(&discord_ipc_path, "/run/user/1000/discord-ipc-0"); // TODO
+    asprintf(&discord_ipc_path, "/run/user/1000/.flatpak/com.discordapp.Discord/xdg-run/discord-ipc-0"); // TODO
 
     // Connect to the socket
     client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -78,7 +78,7 @@ int Rpc_Unix_Initialize(char* client_id) {
     }
 
     Discord_RPCHeader_t handshake_hdr;
-    handshake_hdr.type = DISCORDRPC_TYPE_HANDSHAKE;
+    handshake_hdr.type = DISCORDRPC_RPC_TYPE_HANDSHAKE;
     handshake_hdr.size = strlen(payload_str);
 
     rc = send(client_fd, &handshake_hdr, sizeof(Discord_RPCHeader_t), 0);
@@ -99,7 +99,6 @@ int Rpc_Unix_Initialize(char* client_id) {
     uint8_t handshake_resp_hdr_data[8];
     rc = recv(client_fd, &handshake_resp_hdr_data, sizeof(handshake_resp_hdr_data), 0);
     if (rc == -1 || rc != sizeof(handshake_resp_hdr_data)) {
-        printf("fuck\n");
         close(client_fd);
         return -1;
     }
@@ -113,7 +112,6 @@ int Rpc_Unix_Initialize(char* client_id) {
 
     rc = recv(client_fd, handshake_resp_data, handshake_resp_hdr->size, 0);
     if (rc == -1 || rc != handshake_resp_hdr->size) {
-        printf("fuck b\n");
         free(handshake_resp_data); handshake_resp_data = NULL;
         close(client_fd);
         return -1;
@@ -123,9 +121,56 @@ int Rpc_Unix_Initialize(char* client_id) {
     printf("ret: %s\n", handshake_resp_data);
     // TODO: Seems to return 4000 when no client id is provided
 
-
+    server_fd = client_fd;
 
     return 0;
+}
+
+/*
+ * Send frame
+ * Do not close blah blah
+ */
+int Rpc_Unix_SendFrame(char* payload) {
+#ifdef DISCORDRPC_DEBUG
+    printf("[Rpc_Unix_SendFrame] Sending Frame.\n");
+    printf("[Rpc_Unix_SendFrame] Payload is %s\n", payload);
+#endif
+    static int rc = 0;
+
+    Discord_RPCHeader_t handshake_req_hdr;
+    handshake_req_hdr.type = DISCORDRPC_RPC_TYPE_FRAME;
+    handshake_req_hdr.size = strlen(payload);
+
+    rc = send(server_fd, &handshake_req_hdr, sizeof(Discord_RPCHeader_t), 0);
+    if (rc == -1) {
+        return -1;
+    }
+
+    rc = send(server_fd, payload, strlen(payload), 0);
+    if (rc == -1) {
+        return -1;
+    }
+
+    uint8_t handshake_resp_hdr_data[8];
+    rc = recv(server_fd, &handshake_resp_hdr_data, sizeof(handshake_resp_hdr_data), 0);
+    if (rc == -1 || rc != sizeof(handshake_resp_hdr_data)) {
+        return -1;
+    }
+    Discord_RPCHeader_t* handshake_resp_hdr = (Discord_RPCHeader_t*)&handshake_resp_hdr_data;
+
+    printf("recv with type %d, sending back %d\n", handshake_resp_hdr->type, handshake_resp_hdr->size);
+
+    char* handshake_resp_data = malloc(handshake_resp_hdr->size * sizeof(char));
+    if (handshake_resp_data == NULL) {
+        return -1;
+    }
+
+    rc = recv(server_fd, handshake_resp_data, handshake_resp_hdr->size, 0);
+    if (rc == -1 || rc != handshake_resp_hdr->size) {
+        free(handshake_resp_data); handshake_resp_data = NULL;
+        return -1;
+    }
+    printf("%s\n", handshake_resp_data);
 }
 
 const char* Rpc_Unix_GetTempPath() {
@@ -143,7 +188,7 @@ const char* Rpc_Unix_GetTempPath() {
  * Returns ---
  */
 int Rpc_Unix_Open() {
-    //
+
 }
 
 

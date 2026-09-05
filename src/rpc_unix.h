@@ -9,5 +9,6 @@
 
 int Rpc_Unix_Initialize(char* client_id);
 const char* Rpc_Unix_GetTempPath();
+int Rpc_Unix_SendFrame(char* payload);
 
 #endif
